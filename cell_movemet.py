@@ -1,7 +1,12 @@
+from __future__ import division
+
+#TODO: udelat GUI - slider na zmenu particlu v detailu, okno pro vypis statistik
+
 import cv2
 import matplotlib.pyplot as plt
 
 import numpy as np
+import math
 
 # Callback Function for Trackbar (but do not any work)
 def nothing(*arg):
@@ -80,12 +85,71 @@ def thresholding_test(img, t=100):
     # plt.show()
 
 
+def unit_vector(vector):
+    """ Returns the unit vector of the vector.  """
+    return vector / np.linalg.norm(vector)
+
+
+def angle_between(v1, v2):
+    """ Returns the angle in radians between vectors 'v1' and 'v2'::
+
+            >>> angle_between((1, 0, 0), (0, 1, 0))
+            1.5707963267948966
+            >>> angle_between((1, 0, 0), (1, 0, 0))
+            0.0
+            >>> angle_between((1, 0, 0), (-1, 0, 0))
+            3.141592653589793
+    """
+    v1_u = unit_vector(v1)
+    v2_u = unit_vector(v2)
+    ang_rad = np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))
+    ang_deg = math.degrees(ang_rad)
+    return ang_deg
+
+
 def analyze_particle(img, cnt, show=False, show_now=True):
-    clone = img.copy()
+    clone = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
     box = cv2.minAreaRect(cnt)
     box = np.int0(cv2.cv.BoxPoints(box))
     cv2.drawContours(clone, [cnt], -1, (0, 255, 0), 1)
     cv2.drawContours(clone, [box], -1, (0, 0, 255), 1)
+
+    # creating ROI image
+    offset = 5
+    min_x, min_y = box.min(axis=0)
+    max_x, max_y = box.max(axis=0)
+    min_x_off = min_x - offset
+    max_x_off = max_x + offset
+    min_y_off = min_y - offset
+    max_y_off = max_y + offset
+    # img_roi = img[min_y_off:max_y_off, min_x_off:max_x_off]
+    clone_roi = clone[min_y_off:max_y_off, min_x_off:max_x_off]
+
+    # calculating intensity statistics
+    mask = np.zeros(img.shape, dtype=np.uint8)
+    cv2.drawContours(mask, [cnt], -1, (1), -1)
+    masked = img * mask
+    img_roi = masked[min_y_off:max_y_off, min_x_off:max_x_off]
+    ints = img[np.nonzero(mask)]
+    mean_int = np.mean(ints)
+    median_int = np.median(ints)
+
+    # calculatinging angle
+    dist1 = np.linalg.norm(box[0, :] - box[1, :])
+    dist2 = np.linalg.norm(box[1, :] - box[2, :])
+    if dist1 < dist2:
+        pt1 = (box[0, :] + box[1, :]) / 2.
+        pt2 = (box[2, :] + box[3, :]) / 2.
+    else:
+        pt1 = (box[0, :] + box[3, :]) / 2.
+        pt2 = (box[1, :] + box[2, :]) / 2.
+    cv2.line(clone, tuple(pt1.astype(np.int)), tuple(pt2.astype(np.int)), (255, 0, 0), 1)
+    v1 = tuple(pt2 - pt1)
+    angle = angle_between(v1, (1, 0))
+
+    # writing statistics
+    # text = 'mean = %.1f\nmedian = %.1f\n angle = %i' % (mean_int, median_int, int(angle))
+    res = 'mean = %.1f, median = %.1f, angle = %i' % (mean_int, median_int, int(angle))
 
     if show:
         # cv2.namedWindow('particle', flags=cv2.WINDOW_NORMAL)
@@ -104,9 +168,14 @@ def analyze_particle(img, cnt, show=False, show_now=True):
         for tl in ax3.get_xticklabels() + ax3.get_yticklabels():
             tl.set_visible(False)
 
-        ax1.text(0.5, 0.5, 'ax1', va='center', ha='center')
-        ax2.text(0.5, 0.5, 'ax2', va='center', ha='center')
-        ax3.text(0.5, 0.5, 'ax3', va='center', ha='center')
+        ax1.imshow(cv2.cvtColor(clone, cv2.COLOR_BGR2RGB), interpolation='nearest')
+        ax2.imshow(img_roi, 'gray', interpolation='nearest')
+        ax3.imshow(cv2.cvtColor(clone_roi, cv2.COLOR_BGR2RGB), interpolation='nearest')
+        plt.suptitle(res)
+        # ax1.text(0.5, 0.5, 'ax1', va='center', ha='center')
+        # ax2.text(0.5, 0.5, 'ax2', va='center', ha='center')
+        # ax3.text(0.5, 0.5, text, va='center', ha='center')
+
         if show_now:
             plt.show()
 
@@ -127,7 +196,8 @@ def run(fname):
     # cnts = sorted(cnts, key=cv2.contourArea, reverse=True)
     cnts_f = [c for c in cnts if cv2.contourArea(c) >= min_area]
 
-    analyze_particle(img, cnts_f[0], show=True)
+    for c in cnts_f:
+        analyze_particle(img, c, show=True)
 
     # clone1 = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
     # clone2 = clone1.copy()
