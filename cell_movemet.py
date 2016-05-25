@@ -1,6 +1,6 @@
 from __future__ import division
 
-#TODO: udelat GUI - slider na zmenu particlu v detailu, okno pro vypis statistik
+# TODO: udelat GUI - slider na zmenu particlu v detailu, okno pro vypis statistik
 
 import cv2
 import matplotlib.pyplot as plt
@@ -8,11 +8,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import math
 
-# Callback Function for Trackbar (but do not any work)
+
 def nothing(*arg):
+    # Callback Function for Trackbar (but do not any work)
     pass
 
-# Code here
+
 def simple_trackbar(img, window_name='trackbar'):
     # Generate trackbar Window Name
     trackbar_name = window_name
@@ -42,7 +43,7 @@ def simple_trackbar(img, window_name='trackbar'):
     return threshold
 
 
-def thresholding_test(img, t=100):
+def thresholding_test(img):
     # block_size = 11
     # c = 2
     # th1 = cv2.adaptiveThreshold(img, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, block_size, c)
@@ -127,7 +128,7 @@ def analyze_particle(img, cnt, show=False, show_now=True):
 
     # calculating intensity statistics
     mask = np.zeros(img.shape, dtype=np.uint8)
-    cv2.drawContours(mask, [cnt], -1, (1), -1)
+    cv2.drawContours(mask, [cnt], -1, 1, -1)
     masked = img * mask
     img_roi = masked[min_y_off:max_y_off, min_x_off:max_x_off]
     ints = img[np.nonzero(mask)]
